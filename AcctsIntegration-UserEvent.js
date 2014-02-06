@@ -3,7 +3,7 @@
  * 
  * Version    Date               Author                    Remarks
  * 1.00       17 Nov 2013     mohanboopalan
- *
+ * 1.10       01 Feb 2014     mohanboopalan                Logic to include customfield or not
  */
 
 /**
@@ -19,7 +19,15 @@
  */
 function userEventAfterSubmit(type){
 
-var IsInclCustomField = true;
+if (nlapiGetContext().getSetting('SCRIPT' , 'custscript_acctsint_isinclCustomField') == 'T' )
+ {
+     var IsInclCustomField = true;
+ }
+ else
+ {  
+     var IsInclCustomField = false;
+ }
+
 var IsCallSchedule = true; 
 
  if ( type == 'create')
@@ -86,15 +94,19 @@ results =  nlapiScheduleScript('customscript_acctsint_userevent_sched', 'customd
       {
 
                   if (IsInclCustomField) { 
+
                   if ((oldrecord.getFieldValue(GetInclCustomField(currentType)) == 'T' ) &&
                      (newrecord.getFieldValue(GetInclCustomField(currentType)) == 'F' ))
                      { inclopttype = 'edit-false';}
+
                   if ((oldrecord.getFieldValue(GetInclCustomField(currentType)) == 'F' ) &&
                      (newrecord.getFieldValue(GetInclCustomField(currentType)) == 'T' ))
                      { inclopttype = 'edit-true';}
+
                   if ((oldrecord.getFieldValue(GetInclCustomField(currentType)) == 'F' ) &&
                      (newrecord.getFieldValue(GetInclCustomField(currentType)) == 'F' ))
                      { IsCallSchedule = false;}
+
                  }
 
 
@@ -106,7 +118,6 @@ results =  nlapiScheduleScript('customscript_acctsint_userevent_sched', 'customd
                    ( newrecord.getFieldValue('isinactive') == 'F' && oldrecord.getFieldValue('isinactive') != 'F' ) &&
                    (IsCallSchedule)) 
                   {
-
                       if  (inclopttype != '')
                       {
                        params['custscript_acctsint_optype'] = inclopttype;
@@ -160,8 +171,9 @@ results =  nlapiScheduleScript('customscript_acctsint_userevent_sched', 'customd
                         //}
     
                 }
-              if (( newrecord.getFieldValue('isinactive') != 'F' && oldrecord.getFieldValue('isinactive') == 'F' ) || ( newrecord.getFieldValue('isinactive') == 'T' && oldrecord.getFieldValue('isinactive') != 'T' ) && (IsCallSchedule)) 
+              if ( newrecord.getFieldValue('isinactive') == 'T' && oldrecord.getFieldValue('isinactive') != 'T'  && (IsCallSchedule)) 
               {
+                     
                        if  (inclopttype != '')
                       {
                        params['custscript_acctsint_optype'] = inclopttype;
