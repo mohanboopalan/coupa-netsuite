@@ -1,9 +1,12 @@
 /**
 * Module Description
 * 
-* Version       Date                   Author                        Remarks
+* Version       Date                Author                  Remarks
 * 1.00       15 Nov 2013         mohanboopalan         User Event Scheduled
-*
+* 1.10       16 Jan 2014         mohanboopalan         added name with hierarchy for department, 
+*                                                      account name added in error message
+* 1.20       22 Jan 2014         mohanboopalan         removed parameter of response limit
+* 1.30       27 Jan 2014         mohanboopalan         Map between subsidiary and Chart of accounts, filter only mapped subsidiaries
 */
 /**
 * @param {String} type Context Types: scheduled, ondemand, userinterface, aborted, skipped
@@ -41,8 +44,9 @@ function scheduled(type) {
         
                 var url = context.getSetting('SCRIPT' , 'custscript_acctsint_url');
                 paramvalues[0] =  context.getSetting('SCRIPT' , 'custscript_acctsint_url');
-                      url = url +  '/api/accounts?bulk=1&limit=' + context.getSetting('SCRIPT' , 'custscript_acctsint_responselimit');
-                paramvalues[1] = context.getSetting('SCRIPT' , 'custscript_acctsint_responselimit');
+                
+                url = url +  '/api/accounts?bulk=1';
+                paramvalues[1] = context.getSetting('SCRIPT' , 'custscript_acctsint_accountname');
              
                 var headers = new Array();
                 headers['Accept'] = 'text/xml';
@@ -90,7 +94,16 @@ function scheduled(type) {
 
                 var custfieldexclset = context.getSetting('SCRIPT' , 'custscript_acctsint_excl_set');
                 paramvalues[16] = context.getSetting('SCRIPT' , 'custscript_acctsint_excl_set');
-               
+
+                var CoACnt = 1;
+
+               //Subsidiaries
+               var IncludeAllSubsidiary = context.getSetting('SCRIPT' , 'custscript_acctsint_coasubsdylstinclonly');
+
+               //Account Nbr and Name format
+               var AcctDetails = new Array();
+                AcctDetails = context.getSetting('SCRIPT' , 'custscript_acctsint_glacctdetailsformat').split(':');
+
                //Parameter Values being passed
                 nlapiLogExecution('AUDIT','Segment-1',  segments[0]);
                 nlapiLogExecution('AUDIT','Segment-2',  segments[1]);               
@@ -106,7 +119,7 @@ function scheduled(type) {
                 nlapiLogExecution('AUDIT','Process Max. Recs per Request to Coupa',maxAcctsperReq);
                 nlapiLogExecution('AUDIT','Coupa URL',context.getSetting('SCRIPT' , 'custscript_acctsint_url'));
                 nlapiLogExecution('AUDIT','Coupa API Key',context.getSetting('SCRIPT' , 'custscript_acctsint_apikey'));
-                nlapiLogExecution('AUDIT','Coupa URL Response Limit',context.getSetting('SCRIPT' , 'custscript_acctsint_responselimit'));
+                nlapiLogExecution('AUDIT','Coupa Account Name',context.getSetting('SCRIPT' , 'custscript_acctsint_accountname'));
                 nlapiLogExecution('AUDIT','Chart of Accounts',context.getSetting('SCRIPT' , 'custscript_acctsint_chartofaccounts'));
 
                 var currentDate = new Date();
@@ -228,6 +241,8 @@ function scheduled(type) {
                   if (AcctMaxRecords > parseInt(maxNbr) && parseInt(maxNbr) != 0) { IsCallAnotherScript = 'true';}
                   if (AcctMaxRecords > parseInt(maxNbr) && parseInt(maxNbr) == 0) { maxNbr= AcctMaxRecords;}
 
+                  nlapiLogExecution('AUDIT','Processing No of Accts',AcctMaxRecords);
+
                   for ( var i = initialNbr;  i < Math.min (maxNbr, AcctMaxRecords); i++)
                   {
 
@@ -246,15 +261,27 @@ function scheduled(type) {
                          }
                          else
                          {
-                               
-                                var searchresult = nlapiLoadRecord('account',searchresults[i].getId());
-                               acctsegment = searchresult.getFieldValue('acctnumber') + ':' + searchresult.getFieldValue('acctname');
-                               loopcontentnames[0]= searchresult.getFieldValue('acctname');
-                               var loop1SearchResultFieldValue = searchresult.getFieldValues(loop1FieldName);
-                                                          
-                              //nlapiLogExecution('AUDIT','loop2FieldName',loop2FieldName);
 
-                                 if (loop2FieldName = 'department')
+                                var searchresult = nlapiLoadRecord('account',searchresults[i].getId());
+
+                               acctsegment = searchresult.getFieldValue(AcctDetails[0]) + ':' + searchresult.getFieldValue(AcctDetails[1]) ;
+
+                               loopcontentnames[0]= searchresult.getFieldValue('acctname');
+
+                               //nlapiLogExecution('AUDIT','loop1FieldName',loop1FieldName);
+
+                                 if (loop1FieldName == 'department')
+                                {
+                                    var loop1SearchResultFieldValue = searchresult.getFieldValue(loop1FieldName);
+                                }
+                                else
+                                {
+                                    var loop1SearchResultFieldValue = searchresult.getFieldValues(loop1FieldName);
+                                 }
+                                                          
+                               //nlapiLogExecution('AUDIT','loop2FieldName',loop2FieldName);
+
+                                 if (loop2FieldName == 'department')
                                 {
                                     var loop2SearchResultFieldValue = searchresult.getFieldValue(loop2FieldName);
                                 }
@@ -262,21 +289,43 @@ function scheduled(type) {
                                 {
                                     var loop2SearchResultFieldValue = searchresult.getFieldValues(loop2FieldName);
                                  }
-                                 
-                               var loop3SearchResultFieldValue = searchresult.getFieldValues(loop3FieldName);
-                               var loop4SearchResultFieldValue = searchresult.getFieldValues(loop4FieldName);
-                               var IsIncludeChildSubsdy  =  searchresult.getFieldValue('includechildren');
+                                 if (loop3FieldName == 'department')
+                                {
+                                    var loop3SearchResultFieldValue = searchresult.getFieldValue(loop3FieldName);
+                                }
+                                else
+                                {
+                                    var loop3SearchResultFieldValue = searchresult.getFieldValues(loop3FieldName);
+                                 }
+                                 if (loop3FieldName == 'department')
+                                {
+                                    var loop3SearchResultFieldValue = searchresult.getFieldValue(loop3FieldName);
+                                }
+                                else
+                                {
+                                    var loop3SearchResultFieldValue = searchresult.getFieldValues(loop3FieldName);
+                                 }
+                                 if (loop4FieldName == 'department')
+                                {
+                                    var loop4SearchResultFieldValue = searchresult.getFieldValue(loop4FieldName);
+                                }
+                                else
+                                {
+                                    var loop4SearchResultFieldValue = searchresult.getFieldValues(loop4FieldName);
+                                 }
+
+                                 var IsIncludeChildSubsdy  =  searchresult.getFieldValue('includechildren');
 
                           }
 
                         //loop1 Check Start                         
-                        if ( loop1SearchResultFieldValue == null || (loop1SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ))
+                        if ( loop1SearchResultFieldValue == null || (loop1FieldName  == 'subsidiary' && (loop1SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' ))
                         {
-                                // nlapiLogExecution('AUDIT','check 2');
-
+                                 //nlapiLogExecution('AUDIT','loop1MaxRecords',loop1MaxRecords);
+                                  
                                           for ( var j = 0;  j < Math.min (500, loop1MaxRecords); j++)
                                           {
-                                                       if ( OpType == 'delete' &&  loopsegs[0] == UserEventRecType)
+                                                   if ( OpType == 'delete' &&  loopsegs[0] == UserEventRecType)
                                                       {
                                                        loop1content = DeletedSegmentName;
                                                       }
@@ -285,12 +334,17 @@ function scheduled(type) {
                                                      var searchresult1 = loop1searchresults[j];
               loop1content = getRecordTypeNameField(loop1FieldName,searchresult1) + ':' + searchresult1.getValue('internalid');
                                              loopcontentnames[1]= getRecordTypeNameField(loop1FieldName,searchresult1);
+                                 //nlapiLogExecution('AUDIT','loop1content',loop1content);
                                                        }
 
                                                           //nlapiLogExecution('AUDIT','Loop2SearchResultFieldValue',loop2SearchResultFieldValue);
-     
+                                      //nlapiLogExecution('AUDIT','loopsegs1',loopsegs[1]);
+
+//Is loop 2 to be set ?
+if ( loopsegs[1] != '' && loopsegs[1] != null)
+{
                                                                //loop2 Check Start
-                                                               if ( loop2SearchResultFieldValue == null)
+                                                               if ( loop2SearchResultFieldValue == null || (loop2FieldName  == 'subsidiary' && (loop2SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' ))
                                                                   {
                                                                     //nlapiLogExecution('AUDIT','check 3','Loop2 check 2 Start');
 
@@ -314,7 +368,7 @@ function scheduled(type) {
 if ( loopsegs[2] != '' && loopsegs[2] != null)
 {
      //loop3 Check Start
-     if ( loop3SearchResultFieldValue == null || loop3SearchResultFieldValue == '')
+     if ( loop3SearchResultFieldValue == null || loop3SearchResultFieldValue == '' || (loop3FieldName  == 'subsidiary' && (loop3SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' ))
      {
 
           //nlapiLogExecution('AUDIT','check 3');
@@ -339,7 +393,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
              if ( loopsegs[3] != '' && loopsegs[3] != null)
              {
                   //loop4 Check Start
-                  if ( loop4SearchResultFieldValue == null || loop4SearchResultFieldValue == '') 
+                  if ( loop4SearchResultFieldValue == null || loop4SearchResultFieldValue == '' || (loop4FieldName  == 'subsidiary' && (loop4SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' )) 
                    {
                         for ( var k4 = 0;  k4 < Math.min (500, loop4MaxRecords); k4++)
                         {
@@ -359,7 +413,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                                  //nlapiLogExecution('AUDIT','check 4');
                                  //nlapiLogExecution('AUDIT','check 4',maxAcctsperReq);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers); iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords);
  iCounter = 0;contents1='';}
@@ -381,7 +435,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                                     loop4content = getRecordTypeNameField(loop4FieldName,searchresult4) + ':' + searchresult4.getValue('internalid');
                                     loopcontentnames[4] = getRecordTypeNameField(loop4FieldName,searchresult4);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
 
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
@@ -393,7 +447,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
               }
               else
               {	
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                                 // nlapiLogExecution('AUDIT','Data',contents1);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
@@ -416,7 +470,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                     loop3content = getRecordTypeNameField(loop3FieldName,searchresult3) + ':' + searchresult3.getValue('internalid');
                     loopcontentnames[3] = getRecordTypeNameField(loop3FieldName,searchresult3);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
                     loop3content = '';
@@ -427,7 +481,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
 }                                                                      
 else
 {	
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
 loop2content = '';
@@ -464,7 +518,7 @@ loop2content = '';
                                                                                  var searchresult2 = loop2searchresults[k2];
                             loop2content = getRecordTypeNameField(loop2FieldName,searchresult2) + ':' + searchresult2.getValue('internalid');
                  loopcontentnames[2] = getRecordTypeNameField(loop2FieldName,searchresult2);
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
 
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1=''; }
@@ -473,6 +527,17 @@ loop2content = '';
                                                                               }
                                                                            }
                                                                   }//loop2 check End
+                                                               } //loop2 Is Set to be check end
+                                                                  else
+                                                                  {
+
+                                 //nlapiLogExecution('AUDIT','loop1content else loop',loop1content);
+                                 iCounter = iCounter + CoACnt;
+                            contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
+                                 //nlapiLogExecution('AUDIT','contents',contents1);
+                             if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers); iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords);
+ iCounter = 0;contents1='';}
+                                                                    } //loop2 to be set check else end
 
                                                 loop1content = '';
                                           }
@@ -499,13 +564,16 @@ loop2content = '';
                                         loopcontentnames[1] = getRecordTypeNameField(loop1FieldName,searchresult1);
 
                                 
-                                   //iCounter = iCounter + 1;
+                                   //iCounter = iCounter + CoACnt;
                             //contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              //if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
 
 
  //loop2 Check Start
-                                                               if ( loop2SearchResultFieldValue == null)
+//Is loop 2 to be set ?
+if ( loopsegs[1] != '' && loopsegs[1] != null)
+{
+                                                               if ( loop2SearchResultFieldValue == null || (loop2FieldName  == 'subsidiary' && (loop2SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' ))
                                                                   {
                                                                     //nlapiLogExecution('AUDIT','check 3','Loop2 check 2 Start');
 
@@ -529,7 +597,7 @@ loop2content = '';
 if ( loopsegs[2] != '' && loopsegs[2] != null)
 {
      //loop3 Check Start
-     if ( loop3SearchResultFieldValue == null || loop3SearchResultFieldValue == '')
+     if ( loop3SearchResultFieldValue == null || loop3SearchResultFieldValue == '' || (loop3FieldName  == 'subsidiary' && (loop3SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' ))
      {
 
           //nlapiLogExecution('AUDIT','check 3');
@@ -554,7 +622,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
              if ( loopsegs[3] != '' && loopsegs[3] != null)
              {
                   //loop4 Check Start
-                  if ( loop4SearchResultFieldValue == null || loop4SearchResultFieldValue == '') 
+                  if ( loop4SearchResultFieldValue == null || loop4SearchResultFieldValue == '' || (loop4FieldName  == 'subsidiary' && (loop4SearchResultFieldValue != null && IsIncludeChildSubsdy  == 'T' ) || IncludeAllSubsidiary == 'T' )) 
                    {
                         for ( var k4 = 0;  k4 < Math.min (500, loop4MaxRecords); k4++)
                         {
@@ -574,7 +642,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                                  //nlapiLogExecution('AUDIT','check 4');
                                  //nlapiLogExecution('AUDIT','check 4',maxAcctsperReq);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
                                     loop4content = '';
@@ -595,7 +663,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                                     loop4content = getRecordTypeNameField(loop4FieldName,searchresult4) + ':' + searchresult4.getValue('internalid');
                                     loopcontentnames[4] = getRecordTypeNameField(loop4FieldName,searchresult4);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
 
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
@@ -607,7 +675,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
               }
               else
               {	
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                                 // nlapiLogExecution('AUDIT','Data',contents1);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
@@ -630,7 +698,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
                     loop3content = getRecordTypeNameField(loop3FieldName,searchresult3) + ':' + searchresult3.getValue('internalid');
                     loopcontentnames[3] = getRecordTypeNameField(loop3FieldName,searchresult3);
 
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
                     loop3content = '';
@@ -641,7 +709,7 @@ if ( loopsegs[2] != '' && loopsegs[2] != null)
 }                                                                      
 else
 {	
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1='';}
 loop2content = '';
@@ -665,7 +733,7 @@ loop2content = '';
                                                                                  var searchresult2 = loop2searchresults[k2];
                             loop2content = getRecordTypeNameField(loop2FieldName,searchresult2) + ':' + searchresult2.getValue('internalid');
                  loopcontentnames[2] = getRecordTypeNameField(loop2FieldName,searchresult2);
-                                   iCounter = iCounter + 1;
+                                   iCounter = iCounter + CoACnt;
                             contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
 
                              if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers);iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords); iCounter = 0;contents1=''; }
@@ -674,6 +742,15 @@ loop2content = '';
                                                                               }
                                                                            }
                                                                   }//loop2 check End
+                                                                 }//loop2 to be Set Check End
+                                                                 else
+                                                                  {
+  iCounter = iCounter + CoACnt;
+                            contents1 += GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames);
+                             if ( iCounter >= maxAcctsperReq)  { var responseresults = SendRequestToCoupa(contents1,url,headers); iCountRecords =iCountRecords + iCounter; nlapiLogExecution('AUDIT','Number of Records Processed',iCountRecords);
+ iCounter = 0;contents1='';}
+                                                                    } //loop2 to be set check else end
+
                                            loop1content = '';
                                       }
                                    }
@@ -716,7 +793,7 @@ loop2content = '';
 			errordetails = error.getDetails()+ ".";
 		   }
    		nlapiLogExecution('ERROR','Process Error',  errorcode + ': ' + errordetails);
-    		nlapiSendEmail(-5,context.getSetting('SCRIPT' , 'custscript_acctsint_erroremailnotify'),'Error In Accounts Integration', 'Error Message: ' + errorcode + ': ' + errordetails);
+    		nlapiSendEmail(-5,context.getSetting('SCRIPT' , 'custscript_acctsint_erroremailnotify'), context.getSetting('SCRIPT' ,'custscript_acctsint_accountname') + '- Error In Accounts Integration', 'Error Message: ' + errorcode + ': ' + errordetails);
 
 	        }
                }
@@ -761,6 +838,11 @@ function SendRequestToCoupa(data,url,headers)
 {
        //nlapiLogExecution('AUDIT', 'Request Data',data);
     
+/*objFile = nlapiCreateFile('Request_' + nlapiDateToString(new Date(),'date')  + nlapiDateToString(new Date(),'timeofday') + '.csv', 'CSV',data);
+                      objFile.setFolder(15);
+                      id = nlapiSubmitFile(objFile);  */
+
+
         var contents = '<?xml version=\"1.0\"  encoding=\"UTF-8\"?><accounts>' +  data+ '</accounts>';
 
          var response = nlapiRequestURL(url,contents, headers);
@@ -774,6 +856,11 @@ function SendRequestToCoupa(data,url,headers)
   {
      nlapiLogExecution('ERROR', 'Response Body  for'+ response.getCode(), response.getBody());
     }
+
+objFile = nlapiCreateFile('Response_' + nlapiDateToString(new Date(),'date')  + nlapiDateToString(new Date(),'timeofday') + '.csv', 'CSV',response.getBody());
+                      objFile.setFolder(15);
+                      id = nlapiSubmitFile(objFile);  
+
 
 return response;
 
@@ -868,11 +955,12 @@ function SetLoopSegmentSearchResults(loopsegment,userEventRecType,userEventRecTy
                 var context = nlapiGetContext();
 
                 var custfieldexclset = context.getSetting('SCRIPT' , 'custscript_acctsint_excl_set');
-
+                var custfieldinclset  =  context.getSetting('SCRIPT' , 'custscript_acctsint_coasubsdylstinclonly');
 
                 deptfilters[0] = new nlobjSearchFilter('isinactive',null,'is','F');
                 deptcolumns[0] = new nlobjSearchColumn('name');
                 deptcolumns[1] = new nlobjSearchColumn('internalid');
+                deptcolumns[2] = new nlobjSearchColumn('namenohierarchy');
 
                 classfilters[0] = new nlobjSearchFilter('isinactive',null,'is','F');
                 classcolumns[0] = new nlobjSearchColumn('name');
@@ -925,6 +1013,7 @@ function SetLoopSegmentSearchResults(loopsegment,userEventRecType,userEventRecTy
                    if ( loopsegment == 'Subsidiary' && loopsegment == userEventRecType)
                   {
                       subsdyfilters[0] = new nlobjSearchFilter('internalid',null,'is',userEventRecTypeID);
+
                       var  loopsegsearchresults =  nlapiSearchRecord('subsidiary',null,subsdyfilters,subsdycolumns);
                   }
                    if ( loopsegment == 'Subsidiary' && loopsegment != userEventRecType)
@@ -932,6 +1021,10 @@ function SetLoopSegmentSearchResults(loopsegment,userEventRecType,userEventRecTy
                         if(custfieldexclset == 'T')
                         {
                             var  loopsegsearchresults =  nlapiSearchRecord('subsidiary','customsearch_onlycoupasubsdys',null,null);
+                        }
+                       else if (custfieldinclset == 'T')
+                        {
+                            var  loopsegsearchresults =  nlapiSearchRecord('subsidiary','customsearch_onlycoasubsdys',null,null);
                         }
                         else
                         {
@@ -1004,10 +1097,24 @@ function getCustField(segment,segments)
 function getRecordTypeNameField(fieldName,searchresults)
 {
     var retvalue ='' ;
+    var context = nlapiGetContext();
+
+    //nlapiLogExecution('AUDIT','Called in');
 
     if (fieldName == 'department' )
     {
-       retvalue = searchresults.getValue('name');   
+        //nlapiLogExecution('AUDIT','Department with hy',context.getSetting('SCRIPT' ,'custscript_acctsint_deptwithhierarchy'))
+
+        if ( context.getSetting('SCRIPT' ,'custscript_acctsint_deptwithhierarchy') == 'T')
+        {
+             retvalue = searchresults.getValue('name');   
+        }
+        else
+        {
+             retvalue = searchresults.getValue('namenohierarchy');   
+        }
+      // nlapiLogExecution('AUDIT','ret value',retvalue);
+
     }
     if (fieldName == 'class' || fieldName == 'subsidiary' || fieldName == 'location')
     {
@@ -1020,8 +1127,8 @@ function getRecordTypeNameField(fieldName,searchresults)
 
 function GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loop3content,loop4content,GLAcctSegNo,OpType,chartofaccounts,loopcontentnames)  
 {
-
         var xmlcontent = '';
+        var xmlcontents = '';
         var coupaacctname='';
         var coupaacctcode='';
         var coupaacctname ='';
@@ -1030,10 +1137,10 @@ function GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loo
         var loop2contentname = loopcontentnames[2];
         var loop3contentname = loopcontentnames[3];
         var loop4contentname = loopcontentnames[4];
+        var accttypenames = new Array();
+            accttypenames = chartofaccounts.split(',');
 
-          var accttypename = chartofaccounts;
-
-           var  acctsegment = '<![CDATA[' + acctsegment + ']]>';
+          var  acctsegment = '<![CDATA[' + acctsegment + ']]>';
 
           if (loop1content != '')
           {
@@ -1167,7 +1274,7 @@ function GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loo
           {
                coupaacctcode += '-' + loop4content;
            } 
-           xmlcontent +=  '<code>'   + coupaacctcode +   '</code>';
+          // xmlcontent +=  '<code>'   + coupaacctcode +   '</code>';
 
            coupaacctcode  = '';
 
@@ -1377,17 +1484,27 @@ function GenerateLineItem(acctcontents,acctsegment,loop1content,loop2content,loo
            } 
            xmlcontent += '<segment-5>' + acctsegment + '</segment-5>';
        }
-       xmlcontent += '<account-type>';
-       xmlcontent += '<name>' + accttypename + '</name>';
-       xmlcontent += '</account-type>';
-       xmlcontent += '</account>';
-   return xmlcontent;
+
+          if ( nlapiGetContext().getSetting('SCRIPT' , 'custscript_acctsint_coasubsdylstinclonly') == 'T' )
+           {
+              xmlcontent = xmlcontent + '<account-type><name>' + loop1contentname + '</name></account-type></account>'; 
+             return xmlcontent;
+           }
+           else
+           {
+                 for (i=0;i<accttypenames.length;i++)
+                {
+                   var xmlinterim = xmlcontent + '<account-type><name>' + accttypenames[i] + '</name></account-type></account>';
+                   xmlcontents += xmlinterim;
+                }
+                   return xmlcontents;
+            }
 }
 function CallAnotherScript(paramvalues,initialNbr,maxNbr,AcctMaxRecords)
 {
                var params = new Array();
                params['custscript_acctsint_url'] = paramvalues[0];
-               params['custscript_acctsint_responselimit'] = paramvalues[1];
+               params['custscript_acctsint_accountname'] = paramvalues[1];
                params['custscript_acctsint_apikey'] = paramvalues[2];
                params['custscript_acctsint_segment1'] = paramvalues[3];
                params['custscript_acctsint_segment2'] = paramvalues[4];
@@ -1415,5 +1532,5 @@ function CallAnotherScript(paramvalues,initialNbr,maxNbr,AcctMaxRecords)
                      params['custscript_acctsint_maxrecords'] = parseInt(parseInt(maxNbr) + parseInt(maxNbr));
                }
 
-               nlapiScheduleScript('customscript_acctsint_userevent_sched', 'customdeploy_acctsint_userevent_sched', params);
+               nlapiScheduleScript(nlapiGetContext().getScriptId(),nlapiGetContext().getDeploymentId(),params);
 }
